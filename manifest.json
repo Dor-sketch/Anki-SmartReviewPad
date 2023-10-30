@@ -1,0 +1,16 @@
+{
+    "name": "Print Hi Add-on",
+    "description": "Prints 'hi' to the review screen during a review session.",
+    "version": "1.0.0",
+    "author": "Your Name",
+    "license": "MIT",
+    "homepage": "",
+    "minAnkiVersion": "2.1",
+    "hooks": [
+        {
+            "name": "showQuestion",
+            "python": "my_addon.py",
+            "point": "showQuestion"
+        }
+    ]
+}
