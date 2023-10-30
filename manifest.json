@@ -1,16 +1,19 @@
 {
-    "name": "Print Hi Add-on",
-    "description": "Open an interactive sketchpad to draw on the question card",
+    "name": "SmartReviewPad",
     "version": "1.0.0",
-    "author": "Dor Pascal",
+    "authors": [
+        "Dor Pascal"
+    ],
     "license": "MIT",
-    "homepage": "https://github.com/Dor-sketch/Anki-SmartReviewPad.git",
-    "minAnkiVersion": "2.1",
-    "hooks": [
-        {
-            "name": "showQuestion",
-            "python": "my_addon.py",
-            "point": "showQuestion"
-        }
-    ]
+    "url": "https://github.com/Dor-sketch/Anki-SmartReviewPad.git",
+    "description": "An Anki add-on that enhances your review sessions by adding interactive front sides, automatic back sides, and an auto-review feature.",
+    "anki": "2.1.40+",
+    "tags": [
+        "review",
+        "efficiency",
+        "interactive",
+        "automatic"
+    ],
+    "conflicts": [],
+    "dependencies": []
 }
