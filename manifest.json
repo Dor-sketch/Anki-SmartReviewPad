@@ -1,10 +1,10 @@
 {
     "name": "Print Hi Add-on",
-    "description": "Prints 'hi' to the review screen during a review session.",
+    "description": "Open an interactive sketchpad to draw on the question card",
     "version": "1.0.0",
-    "author": "Your Name",
+    "author": "Dor Pascal",
     "license": "MIT",
-    "homepage": "",
+    "homepage": "https://github.com/Dor-sketch/Anki-SmartReviewPad.git",
     "minAnkiVersion": "2.1",
     "hooks": [
         {
