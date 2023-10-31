@@ -48,5 +48,4 @@ If you find a bug or want to contribute to the code, feel free to open an issue 
 
 ## License 📜
 
-This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details.
-
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
