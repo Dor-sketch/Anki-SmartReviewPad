@@ -40,11 +40,6 @@ class CardReviewer:
         self.setup_bridge_command()
 
 
-    def initialize_link_handler(self):
-        if "_link_handlers" not in dir(mw.reviewer):
-            mw.reviewer._link_handlers = {}
-        mw.reviewer._link_handlers["c_pressed"] = self.handle_custom_command
-
 
 
     def setup_bridge_command(self):
@@ -56,18 +51,19 @@ class CardReviewer:
 
         self.reviewer.web.onBridgeCmd = extended_onBridgeCmd
 
-
-    def handle_custom_command(self, reviewer, cmd):
-        if cmd == "c_pressed":
-            self.log_and_speak("Received custom command: {}".format(cmd))
-            self.on_c_pressed()
-
     def handle_bridge_message(self, message):
-        self.log_and_speak("Received bridge message: {}".format(message))
-        if message == 'c_pressed':
-            self.on_c_pressed()
-        elif message == 'enter_pressed':
-            self.on_enter_pressed()
+        self.card_reviewer_logger.debug(f"Received bridge message: {message}")
+        if message == "enter_pressed":
+            pass # only for debugging
+
+    def initialize_link_handler(self):
+        original_link_handler = self.reviewer._linkHandler
+
+        def extended_link_handler(url):
+            original_link_handler(url)
+            self.handle_bridge_message(url)
+
+        self.reviewer._linkHandler = extended_link_handler
 
     def log_and_speak(self, message):
         self.card_reviewer_logger.debug(message)
@@ -116,23 +112,14 @@ class CardReviewer:
     def add_key_events(self):
         mw.reviewer.web.eval("""
             document.querySelector('#scratchpad').addEventListener('keydown', function(event) {
-                if (event.key.toLowerCase() === 'c') {
-                    alert('C pressed');
-                    pycmd('c_pressed');
-                }
                 if (event.key === 'Enter') {
                     document.querySelector('#back-container').style.display = 'block';
                     this.blur();
                     pybridge.send('enter_pressed');
+                    pycmd('enter_pressed');
                 }
             });
         """)
-
-    def on_c_pressed(self):
-        self.log_and_speak("C Pressed!")
-
-    def on_enter_pressed(self):
-        self.log_and_speak("Enter Pressed!")
 
 
     def focus_scratchpad(self):
@@ -154,22 +141,15 @@ class CardReviewer:
     def check_answer(self, scratchpad_content, card=None):
         self.card_reviewer_logger.debug("Checking answer...")
         all_content = self.card_wrapper.fields
-    
+
         scratchpad_words = set(re.findall(r'[\u0590-\u05FF]+', scratchpad_content))
         all_content_words = set(word for field in all_content for word in re.findall(r'[\u0590-\u05FF]+', field))
-    
+
         self.card_reviewer_logger.debug(f"Scratchpad content: {scratchpad_content}")
         self.card_reviewer_logger.debug(f"All content words: {all_content_words}")
-    
+
         if scratchpad_words & all_content_words:
             self.card_reviewer_logger.debug("Correct answer")
             play_correct_answer_sound()
         else:
             self.card_reviewer_logger.debug("Incorrect answer")
-
-    def get_answer(self):
-        iterable_back = mw.reviewer.web.evalWithCallback("document.querySelectorAll('#back-container .field')", self.my_callback)
-        if isinstance(iterable_back, str):
-            return iterable_back
-        else:
-            return iterable_back[0]
