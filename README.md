@@ -1,16 +1,26 @@
-# SmartReviewPad - An Anki Add-on for Effective Reviewing 📚
+# SmartReviewPad - An Enhanced Anki Add-on for Effective Reviewing 📚
 
 ## Introduction 🌟
 
-SmartReviewPad is an Anki add-on that helps you review your cards more effectively. It's based on the proven methodologies of [SuperMemo](https://www.supermemo.com/en/archives1990-2015/english/ol/sm2) and [Anki Simulator](https://pheartheceal.github.io/anki-optimizer/). Use it in conjunction with [Anki Simulator](https://pheartheceal.github.io/anki-optimizer/) to optimize your Anki settings.
+SmartReviewPad is an Anki add-on that helps you review your cards more effectively. Now with added features like automatic answer checking and sound effects to improve your learning experience!
 
 ## Features 🛠️
 
-- **Interactive Front Side**: Interact directly with the front side of your cards. This feature supports answering questions, filling in the blanks, and more. It's especially useful for language learning. 🌍
+- **Interactive Front Side**: Now enhanced with automatic answer checking. Enter your answer on the front side of the card, and SmartReviewPad will automatically verify it against the back side. 🌍
 
-- **Automatic Back Side**: The back side of your cards is auto-generated based on your input on the front side, speeding up the card creation process. 🔄
+- **Automatic Back Side**: The back side of your cards is auto-generated based on your input on the front side. 🔄
 
-- **Automatic Review**: Review your cards directly in the editor, thereby making your reviewing sessions more effective. 🚀
+- **Automatic Review**: Review your cards directly in the editor. 🚀
+
+- **Sound Effects**: Celebrate your correct answers with happy asynchronous sound effects. Compatible with Mac Sounds. 🔊
+
+## New Updates 🆕
+
+- **New Hook**: We've migrated to a new hook for better event handling.
+
+- **New Classes**: Introduced new classes for cleaner code and easier future enhancements.
+
+- **New Logger**: Implemented a dedicated logger for better debugging and event tracking.
 
 ## Installation 📥
 
@@ -30,7 +40,7 @@ SmartReviewPad is an Anki add-on that helps you review your cards more effective
 
 ## Code Overview 🖥️
 
-The add-on is implemented in Python, extending Anki's internal functionality. It uses several best practices for code readability and efficiency. For more information, see the [code comments](https://github.com/Dor-sketch/Anki-SmartReviewPad/blob/main/main.py).
+The add-on is implemented in Python, extending Anki's internal functionality. It uses best practices for code readability and efficiency. For more information, see the [code comments](https://github.com/Dor-sketch/Anki-SmartReviewPad/blob/main/main.py).
 
 ## Contributing 🤝
 
