@@ -1,20 +1,14 @@
-from aqt import mw
-from aqt.reviewer import Reviewer
-import os
-import logging
-from aqt.utils import showInfo
-from .my_card import AnkiCardWrapper
-from .logger import initialize_logging
-from aqt import gui_hooks
 import re
 import subprocess
+import os
+import logging
+from aqt import mw
+from aqt.reviewer import Reviewer
+from aqt import gui_hooks
+from .my_card import AnkiCardWrapper
+from .logger import initialize_logging
 
-def play_correct_answer_sound():
-    try:
-        subprocess.run(["osascript", "-e", 'display notification "Correct answer!" with title "Quiz App" sound name "Glass"'])
-    except Exception as e:
-        print(f"Couldn't play sound: {e}")
-
+HEBREW_CHAR_RANGE = r'[\u0590-\u05FF]'
 
 def my_get_scratchpad(card) -> None:
     mw.reviewer.card_reviewer.get_scratchpad(card)
@@ -23,24 +17,71 @@ def my_get_scratchpad(card) -> None:
 gui_hooks.reviewer_did_show_answer.append(my_get_scratchpad)
 
 
+class GlobalStrikeCounter:
+    _instance = None
+
+    def __new__(cls):
+        logging.info("Initializing GlobalStrikeCounter")
+        if cls._instance is None:
+            logging.info("Creating new instance of GlobalStrikeCounter")
+            cls._instance = super(GlobalStrikeCounter, cls).__new__(cls)
+            cls._instance.strike_count = 0
+        else:
+            logging.info("Returning existing instance of GlobalStrikeCounter, current strike count: {}".format(cls._instance.strike_count))
+        return cls._instance
+
+    def increment(self):
+        self.strike_count += 1
+        self.check_for_special_effects()
+
+    def reset(self):
+        self.strike_count = 0
+        self.play_sound_with_notification("Basso", "Anki", "Incorrect answer!")
+
+    def check_for_special_effects(self):
+        if self.strike_count % 5 == 0:
+            self.apply_five_strike_effect()
+        if self.strike_count % 10 == 0:
+            self.apply_ten_strike_effect()
+        else:
+            self.play_correct_answer_sound("Glass")
+
+    def apply_five_strike_effect(self):
+        self.play_correct_answer_sound("Hero")
+
+    def apply_ten_strike_effect(self):
+        self.play_correct_answer_sound("Basso")
+
+    def play_correct_answer_sound(self, sound_name):
+        try:
+            subprocess.run(["osascript", "-e", 'display notification "Correct answer!" with title "Anki" subtitle "Good job! Current streak: {}" sound name "{}"'.format(self.strike_count, sound_name)])
+        except Exception as e:
+            print(f"Couldn't play sound: {e}")
+
+    def play_sound_with_notification(self, sound_name, notification_title, notification_subtitle):
+        try:
+            subprocess.run(["osascript", "-e", 'display notification "{}" with title "{}" subtitle "{}" sound name "{}"'.format(notification_subtitle, notification_title, notification_subtitle, sound_name)])
+        except Exception as e:
+            print(f"Couldn't play sound: {e}")
+
+    def __str__(self):
+        return str(self.strike_count)
+
 
 class CardReviewer:
 
-    def __init__(self, reviewer):
+    def __init__(self, reviewer: Reviewer):
         self.scratchpad_content = None
         initialize_logging()
         self.card_reviewer_logger = logging.getLogger("anki_addon")
         self.card_reviewer_logger.setLevel(logging.DEBUG)
         self.card_reviewer_logger.propagate = False
         self.card_reviewer_logger.debug("Initializing CardReviewer")
-
         self.reviewer = reviewer
-        self.card_wrapper = None  # Initialize to None here and set when a card is actually being reviewed
+        # Initialize to None here and set when a card is actually being reviewed
+        self.card_wrapper = None
         self.initialize_link_handler()
         self.setup_bridge_command()
-
-
-
 
     def setup_bridge_command(self):
         original_onBridgeCmd = self.reviewer.web.onBridgeCmd
@@ -54,7 +95,7 @@ class CardReviewer:
     def handle_bridge_message(self, message):
         self.card_reviewer_logger.debug(f"Received bridge message: {message}")
         if message == "enter_pressed":
-            pass # only for debugging
+            pass  # only for debugging
 
     def initialize_link_handler(self):
         original_link_handler = self.reviewer._linkHandler
@@ -104,7 +145,6 @@ class CardReviewer:
                 <textarea id='scratchpad' dir='rtl' style='font-size: 24px; background-color: rgb(245, 245, 245);'></textarea>
               </div>"""
 
-
     def inject_card_html(self, front_html, scratchpad_html, back_html):
         mw.reviewer.web.eval(
             f"document.querySelector('.card').innerHTML = `{front_html}<br><br>{scratchpad_html}<br>{back_html}`;")
@@ -121,35 +161,34 @@ class CardReviewer:
             });
         """)
 
-
     def focus_scratchpad(self):
         mw.reviewer.web.eval("document.querySelector('#scratchpad').focus();")
 
-
     def get_scratchpad(self, card=None):
-        mw.reviewer.web.evalWithCallback("document.querySelector('#scratchpad').value", self.my_callback)
-        if self.scratchpad_content:  # Check if content is received
-            self.check_answer(self.scratchpad_content, card)
-
+        mw.reviewer.web.evalWithCallback(
+            "document.querySelector('#scratchpad').value", self.my_callback)
 
     def my_callback(self, result):
         if result is not None:
-            self.card_reviewer_logger.debug(f"Scratchpad callback result: {result}")
+            self.card_reviewer_logger.debug(
+                f"Scratchpad callback result: {result}")
             self.scratchpad_content = result  # Set attribute value
             self.check_answer(result)  # Continue the flow
+
 
     def check_answer(self, scratchpad_content, card=None):
         self.card_reviewer_logger.debug("Checking answer...")
         all_content = self.card_wrapper.fields
+        scratchpad_words = set(re.findall(f'{HEBREW_CHAR_RANGE}+', scratchpad_content))
+        all_content_words = set(word for field in all_content for word in re.findall(f'{HEBREW_CHAR_RANGE}+', field))
+        self.card_reviewer_logger.debug(
+            f"All content words: {all_content_words}")
 
-        scratchpad_words = set(re.findall(r'[\u0590-\u05FF]+', scratchpad_content))
-        all_content_words = set(word for field in all_content for word in re.findall(r'[\u0590-\u05FF]+', field))
+        strike_counter_instance = GlobalStrikeCounter()  # Get the Singleton instance
 
-        self.card_reviewer_logger.debug(f"Scratchpad content: {scratchpad_content}")
-        self.card_reviewer_logger.debug(f"All content words: {all_content_words}")
-
-        if scratchpad_words & all_content_words:
+        if scratchpad_words & all_content_words and scratchpad_words is not None:
             self.card_reviewer_logger.debug("Correct answer")
-            play_correct_answer_sound()
+            strike_counter_instance.increment()
         else:
             self.card_reviewer_logger.debug("Incorrect answer")
+            strike_counter_instance.reset()

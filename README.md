@@ -16,11 +16,14 @@ SmartReviewPad is an Anki add-on that helps you review your cards more effective
 
 ## New Updates 🆕
 
+- **Performance-Monitoring Enhancement**: The new `Strike Counter` now tracks your streak of correct answers, helping you measure your progress more effectively.
+
 - **New Hook**: We've migrated to a new hook for better event handling.
 
 - **New Classes**: Introduced new classes for cleaner code and easier future enhancements.
 
 - **New Logger**: Implemented a dedicated logger for better debugging and event tracking.
+
 
 ## Installation 📥
 
