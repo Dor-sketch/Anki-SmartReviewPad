@@ -1,3 +1,7 @@
+"""
+This module contains functions for generating sentences with a given word.
+Currrently still under development.
+"""
 from PyDictionary import PyDictionary
 
 def generate_sentence_with_word(word):

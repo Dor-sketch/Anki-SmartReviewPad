@@ -1,147 +1,20 @@
+"""
+This module is responsible for handling the card review process.
+"""
 import re
 import logging
+import os
+import subprocess
 from aqt import mw
-from aqt.reviewer import Reviewer
 from aqt import gui_hooks
+from aqt.reviewer import Reviewer
 from .my_card import AnkiCardWrapper
 from .strikecounter import GlobalStrikeCounter
 from .logger import initialize_logging
+from .hebrewhandler import HebrewHandler
 
 
-
-HEBREW_CHAR_RANGE = r'[\u05D0-\u05EA]'  # Range for Hebrew letters excluding punctuation
-HIRIK = "\u05B4"  # Hirik unicode
-HOLAM = "\u05B9"  # Holam unicode
-NIKKUD_RANGE = r'[\u0591-\u05C7]'  # Range for other Niqqud characters
-
-
-def replace_hirik_with_yud(text):
-    """
-    Replaces the Hirik (dot under word) with its equivalent "י", but only if "י" doesn't immediately follow it.
-    """
-    return re.sub(f"{HIRIK}(?!י)", "י", text)
-
-def replace_holam_with_vav(text):
-    """
-    Replaces the Holam (dot above word) with its equivalent "ו", but only if "ו" doesn't immediately follow or precede it.
-    """
-    return re.sub(f"(?<!ו){HOLAM}(?!ו)", "ו", text)
-
-
-def remove_nikkud(text):
-    """
-    Removes all Niqqud from the given text and replaces Hirik and Holam with their equivalent 'י' and 'ו'
-    :param text: Text to modify
-    :return: Modified text
-    """
-    # Replace Hirik with its equivalent "י"
-    text = replace_hirik_with_yud(text)
-
-    # Replace Holam with its equivalent "ו"
-    text = replace_holam_with_vav(text)
-
-    # Remove other Niqqud
-    nikkud = re.compile(NIKKUD_RANGE)
-    return nikkud.sub('', text)
-
-
-def my_get_scratchpad(card) -> None:
-    mw.reviewer.card_reviewer.get_scratchpad(card)
-
-
-gui_hooks.reviewer_did_show_answer.append(my_get_scratchpad)
-
-
-
-
-
-class CardReviewer:
-
-    def __init__(self, reviewer: Reviewer):
-        self.scratchpad_content = None
-        initialize_logging()
-        self.card_reviewer_logger = logging.getLogger("anki_addon")
-        self.card_reviewer_logger.setLevel(logging.DEBUG)
-        self.card_reviewer_logger.propagate = False
-        self.card_reviewer_logger.debug("Initializing CardReviewer")
-        self.reviewer = reviewer
-        # Initialize to None here and set when a card is actually being reviewed
-        self.card_wrapper = None
-        self.initialize_link_handler()
-        self.setup_bridge_command()
-
-    def setup_bridge_command(self):
-        original_onBridgeCmd = self.reviewer.web.onBridgeCmd
-
-        def extended_onBridgeCmd(message):
-            original_onBridgeCmd(message)
-            self.handle_bridge_message(message)
-
-        self.reviewer.web.onBridgeCmd = extended_onBridgeCmd
-
-    def handle_bridge_message(self, message):
-        self.card_reviewer_logger.debug(f"Received bridge message: {message}")
-        if message == "enter_pressed":
-            pass  # only for debugging
-
-    def initialize_link_handler(self):
-        original_link_handler = self.reviewer._linkHandler
-
-        def extended_link_handler(url):
-            original_link_handler(url)
-            self.handle_bridge_message(url)
-
-        self.reviewer._linkHandler = extended_link_handler
-
-    def log_and_speak(self, message):
-        self.card_reviewer_logger.debug(message)
-
-    def update_card_review(self, card=None):
-        self.log_and_speak("Updating card review")
-        self.set_card_html()
-        self.add_key_events()
-
-    def set_card_html(self):
-        card = mw.reviewer.card
-        fields = card.note().fields
-        front_field = self.find_first_non_empty_field(fields)
-        self.inject_card_html(
-            self.build_front_html(front_field),
-            self.build_scratchpad_html(),
-            self.build_back_html(fields, front_field)
-        )
-        self.card_wrapper = AnkiCardWrapper(card)
-        logging.critical(f"Card: {card}")
-        logging.info(f"Card wrapper: {self.card_wrapper}")
-        self.add_key_events()
-        self.focus_scratchpad()
-
-    def find_first_non_empty_field(self, fields):
-        return next((field for field in fields if not field.startswith("[sound:") and field.strip()), None)
-
-    def build_front_html(self, front_field):
-        self.card_reviewer_logger.debug(f"Front field: {front_field}")
-        return f"<div id='front-container' style='display: flex; flex-direction: column; align-items: center; font-size: 24px;'><div class='field'>{front_field}</div></div>"
-
-    def build_back_html(self, fields, front_field):
-        self.card_reviewer_logger.debug(f"Fields: {fields}")
-        return "<div id='back-container' style='display: none; text-align: center; font-size: 24px;'>" + \
-               "".join([f"<div class='field'>{field}</div>" for field in fields if "sound" not in field and field.strip() and field != front_field]) + \
-               "</div>"
-
-    def build_scratchpad_html(self):
-        self.card_reviewer_logger.debug("Building scratchpad HTML")
-        return """<div id='scratchpad-container' style='display: flex; justify-content: center; align-items: center; height: 100%;'>
-                <textarea id='scratchpad' dir='rtl' style='font-size: 24px; background-color: rgb(245, 245, 245);'></textarea>
-              </div>"""
-
-    def inject_card_html(self, front_html, scratchpad_html, back_html):
-        self.card_reviewer_logger.debug("Injecting card HTML: {}".format(str(front_html)))
-        mw.reviewer.web.eval(
-            f"document.querySelector('.card').innerHTML = `{front_html}<br><br>{scratchpad_html}<br>{back_html}`;")
-
-    def add_key_events(self):
-        mw.reviewer.web.eval("""
+KEY_EVENTS_SCRIPT = """
             document.querySelector('#scratchpad').addEventListener('keydown', function(event) {
                 if (event.key === 'Enter') {
                     document.querySelector('#back-container').style.display = 'block';
@@ -150,40 +23,275 @@ class CardReviewer:
                     pycmd('enter_pressed');
                 }
             });
-        """)
+        """
+
+SCRACTHPAD_HTML = """<div id='scratchpad-container' style='display: flex; justify-content: center; align-items: center; height: 100%;'>
+                <textarea id='scratchpad' dir='rtl' style='font-size: 24px; background-color: rgb(245, 245, 245);'></textarea>
+              </div>"""
+
+PANDOC_PATH = '/usr/local/bin/pandoc'
+
+
+INLINE_MATH_PATTERN = re.compile(r"""
+    \\\(   # Matches the opening delimiter \(
+    (.*?)  # Captures everything lazily until it encounters the closing delimiter
+    \\\)   # Matches the closing delimiter \)
+""", re.VERBOSE)
+
+CLOZE_PATTERN = re.compile(r"""
+    {{c      # Matches the opening cloze notation {{c
+    (\d+)    # Captures one or more digits, representing the cloze number
+    ::       # Matches the delimiter between the cloze number and its content
+    (.+?)    # Lazily captures the content of the cloze until the closing }}
+    }}       # Matches the closing cloze notation }}
+""", re.VERBOSE)
+
+
+def my_get_scratchpad(card) -> None:
+    """
+    This function is called when the card is shown.
+    """
+    mw.reviewer.card_reviewer.get_scratchpad(card)
+
+
+gui_hooks.reviewer_did_show_answer.append(my_get_scratchpad)
+
+
+class CardReviewer:
+    """
+    This class is responsible for handling the card review process.
+    """
+
+    def __init__(self, reviewer: Reviewer):
+        self.scratchpad_content = None
+        self.reviewer = reviewer
+        self.card_wrapper = None
+        self._initialize_logging()
+        self._setup_bridge_command()
+        self._initialize_link_handler()
+        self.cloze_answer = None
+
+    def _initialize_logging(self):
+        initialize_logging()
+        self.card_reviewer_logger = logging.getLogger("anki_addon")
+        self.card_reviewer_logger.setLevel(logging.DEBUG)
+        self.card_reviewer_logger.propagate = False
+
+    def _setup_bridge_command(self):
+        original_onBridgeCmd = self.reviewer.web.onBridgeCmd
+        self.reviewer.web.onBridgeCmd = lambda msg: [
+            self._handle_bridge_message(msg), original_onBridgeCmd(msg)]
+
+    def _initialize_link_handler(self):
+        original_link_handler = self.reviewer._linkHandler
+        self.reviewer._linkHandler = lambda url: [
+            self._handle_bridge_message(url), original_link_handler(url)]
+
+    def _handle_bridge_message(self, message):
+        if message == "enter_pressed":
+            self._log_and_speak("Received enter_pressed")
+
+    def _log_and_speak(self, message):
+        self.card_reviewer_logger.debug(message)
+
+    def _update_card_review(self, card=None):
+        card = mw.reviewer.card
+        fields = card.note().fields
+        front_field = self._find_first_non_empty_field(fields)
+        self._inject_card_html(
+            self._build_front_html(front_field),
+            self._build_scratchpad_html(),
+            self._build_back_html(fields, front_field)
+        )
+        self.card_wrapper = AnkiCardWrapper(card)
+        logging.info("Card wrapper: %s", self.card_wrapper)
+        self._add_key_events()
+        self.focus_scratchpad()
+
+    def _find_first_non_empty_field(self, fields):
+        return next((field for field in fields if not field.startswith("[sound:") and field.strip()), None)
+
+    def _find_cloze(self, front_field):
+        return CLOZE_PATTERN.search(front_field)
+
+    def _build_front_html(self, front_field):
+        self.card_reviewer_logger.debug("Front field before: %s", front_field)
+        # handle cloze with regular expression
+        if "{{c" in front_field:
+            cloze = self._find_cloze(front_field)
+            if cloze:
+                self.cloze_answer = cloze.group(2)
+                front_field = re.sub(r"{{c(\d+)::(.+?)}}", r"{}", front_field)
+                self.card_reviewer_logger.debug(
+                    "Front field after cloze extract: %s", front_field)
+
+        if "$$" in front_field or "\\(" in front_field:
+            front_field = self._render_math(front_field)
+            self.card_reviewer_logger.debug(
+                "Front field after math: %s", front_field)
+
+        # TODO: Move scripts to separate file
+        return f"<div id='front-container' style='display: flex; flex-direction: column; align-items: center; font-size: 24px;'><div class='field'>{front_field}</div></div>"
+
+    def _build_back_html(self, fields, front_field):
+        self.card_reviewer_logger.debug("Fields: %s", fields)
+        if self.cloze_answer is not None:
+            return f"<div id='back-container' style='display: none; text-align: center; font-size: 24px;'><div class='field'>{self.cloze_answer}</div></div>"
+        return "<div id='back-container' style='display: none; text-align: center; font-size: 24px;'>" + \
+               "".join([f"<div class='field'>{field}</div>" for field in fields if "sound" not in field and field.strip() and field != front_field]) + \
+               "</div>"
+
+    def _build_scratchpad_html(self):
+        self.card_reviewer_logger.debug("Building scratchpad HTML")
+        cols_value = "20"  # Default size
+        if self.cloze_answer is not None:
+            cols_value = str(len(self.cloze_answer))
+            return f"""<div id='scratchpad-container' style='display: inline-block; justify-content: center; align-items: center;'>
+                <textarea id='scratchpad' dir='rtl' cols='{cols_value}' style='font-size: 24px; background-color: rgb(245, 245, 245);'></textarea>
+                </div>"""
+        else:
+            return SCRACTHPAD_HTML
+
+    def _find_inline_math(self, text):
+        return INLINE_MATH_PATTERN.findall(text)
+
+    def _render_math(self, text):
+        # Find all inline math expressions
+        inline_math = self._find_inline_math(text)
+        inline_math = [f"\\({expr}\\)" for expr in inline_math]
+
+        # Check if pandoc exists
+        if os.path.exists(PANDOC_PATH):
+            # Render each inline math expression
+            rendered_inline_math = []
+            for expr in inline_math:
+                # TODO: Handle errors
+                # try:
+                #     result = subprocess.run(
+                #         [PANDOC_PATH, '-f', 'latex', '-t', 'html'],
+                #         input=expr,
+                #         text=True,
+                #         capture_output=True,
+                #         encoding='utf-8',  # Added encoding to handle non-ASCII characters
+                #         check=True  # Automatically raise an error if the command fails
+                #     )
+                #     rendered_math = result.stdout.strip().replace("<p>", "").replace("</p>", "")
+                #     rendered_inline_math.append(rendered_math)
+                # except subprocess.CalledProcessError as e:
+                #     self.card_reviewer_logger.debug(
+                #         "Pandoc failed with error code %d: %s", e.returncode, e.stderr)
+                #     return text  # Return original text if error occurs
+                # except Exception as e:
+                #     self.card_reviewer_logger.debug(
+                #         "Error occurred while running pandoc: %s", e)
+                #     return text  # Return original text if error occurs
+                try:
+                    result = subprocess.run(
+                        [PANDOC_PATH, '-f', 'latex', '-t', 'html'],
+                        input=expr,
+                        text=True,
+                        capture_output=True,
+                        encoding='utf-8'  # handle non-ASCII characters
+                    )
+                    if result.returncode == 0:
+                        rendered_math = result.stdout.strip().replace("<p>", "").replace("</p>", "")
+                        rendered_inline_math.append(rendered_math)
+                    else:
+                        self.card_reviewer_logger.debug(
+                            "Pandoc failed with error code %d: %s", result.returncode, result.stderr)
+                        return text  # Return original text if error occurs
+                except Exception as e:
+                    self.card_reviewer_logger.debug(
+                        "Error occurred while running pandoc: %s", e)
+                    return text  # Return original text if error occurs
+        else:
+            self.card_reviewer_logger.debug("Pandoc path does not exist.")
+            return text  # Return original text if pandoc path doesn't exist
+
+        # Replace original inline math expressions with their rendered counterparts
+        for original, rendered in zip(inline_math, rendered_inline_math):
+            text = text.replace(original, rendered)
+
+        return text
+
+    def _inject_card_html(self, front_html, scratchpad_html, back_html):
+        self.card_reviewer_logger.debug(
+            "Injecting card HTML (font is): %s", front_html)
+
+        if self.cloze_answer is not None:
+            # place scratchpad in the cloze position
+            scratchpad_html_adjusted = scratchpad_html.replace(
+                "<textarea",
+                "<textarea style='vertical-align: middle;'"
+            )
+            front_html = re.sub(r"{}", scratchpad_html_adjusted, front_html)
+
+            mw.reviewer.web.eval(
+                f"document.querySelector('.card').innerHTML = `{front_html}<br><br>{back_html}`;"
+            )
+
+        else:
+
+            mw.reviewer.web.eval(
+                f"document.querySelector('.card').innerHTML = `{front_html}<br><br>{scratchpad_html}<br>{back_html}`;")
+
+    def _add_key_events(self):
+        mw.reviewer.web.eval(KEY_EVENTS_SCRIPT)
 
     def focus_scratchpad(self):
+        """
+        Focuses the scratchpad element.
+        """
         mw.reviewer.web.eval("document.querySelector('#scratchpad').focus();")
 
     def get_scratchpad(self, card=None):
+        """
+        Gets the scratchpad content and calls the callback function.
+        An entry point for the flow.
+        """
         mw.reviewer.web.evalWithCallback(
             "document.querySelector('#scratchpad').value", self.my_callback)
 
     def my_callback(self, result):
+        """
+        This function is called when the scratchpad content is retrieved.
+        """
         if result is not None:
-            self.card_reviewer_logger.debug(
-                f"Scratchpad callback result: {result}")
+            self.card_reviewer_logger.debug("Callback result: %s", result)
             self.scratchpad_content = result  # Set attribute value
             self.check_answer(result)  # Continue the flow
 
     def check_answer(self, scratchpad_content):
+        """
+        Checks the answer and updates the strike counter accordingly.
+        """
 
-        scratchpad_words = set(re.findall(
-            f'{HEBREW_CHAR_RANGE}+', scratchpad_content))
+        scratchpad_words = set(scratchpad_content)
 
-        # Remove Nikkud from each field individually
-        all_content = [remove_nikkud(field)
-                       for field in self.card_wrapper.fields]
-        all_content_words = set(word for field in all_content for word in re.findall(
-            f'{HEBREW_CHAR_RANGE}+', field))
-        self.card_reviewer_logger.debug(
-            f"All content words: {all_content_words}")
+        if self.cloze_answer is not None:
+            all_content_words = set(
+                [word for word in re.split(r'\W+', self.cloze_answer) if word])
+            self.cloze_answer = None
+
+        else:
+            scratchpad_words = HebrewHandler.extract_content_words(
+                [scratchpad_content])
+            all_content_words = HebrewHandler.extract_content_words(
+                self.card_wrapper.fields)
 
         strike_counter_instance = GlobalStrikeCounter()  # Get the Singleton instance
 
-        if scratchpad_words & all_content_words and scratchpad_words is not None:
-            self.card_reviewer_logger.debug("Correct answer")
-            strike_counter_instance.increment()
-        else:
-            self.card_reviewer_logger.debug("Incorrect answer")
-            strike_counter_instance.reset()
+        # one word is enough
+        intersection_result = scratchpad_words & all_content_words
+
+        if scratchpad_words is not None:
+            if intersection_result:
+                self.card_reviewer_logger.debug("Correct answer")
+                strike_counter_instance.increment()
+            else:
+                strike_counter_instance.reset()
+
+
+# TODO:: Implement MathHandler class to accordint to SRP and OCP
+
+# TODO:: Implement ClozeHandler class to accordint to SRP and OCP

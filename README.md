@@ -24,6 +24,11 @@ SmartReviewPad is an Anki add-on that helps you review your cards more effective
 
 - **New Logger**: Implemented a dedicated logger for better debugging and event tracking.
 
+- **Cloze Support**: Cloze cards are now supported! 🎉
+  - Note: Cloze cards are only partially supported. The add-on will only work with cloze cards that have a single cloze deletion. Multi-cloze cards are not supported at the moment.
+
+- **MathJax Support**: MathJax is now supported! 🎉
+  - Note: To render MathJax, you need Pandoc installed on your machine. For more information, see [here](https://pandoc.org/installing.html).
 
 ## Installation 📥
 

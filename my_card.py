@@ -1,14 +1,26 @@
-from aqt import mw
+"""
+This file contains a wrapper class for Anki cards. It is used to access
+information about the card and modify it.
+"""
 import logging
 import os
+from aqt import mw
+
 
 def initialize_logging():
+    """
+    Initializes logging for the addon.
+    """
     log_path = os.path.join(os.path.dirname(
         os.path.abspath(__file__)), 'anki_addon.log')
     logging.basicConfig(filename=log_path, filemode='a', level=logging.DEBUG)
 
 
 class AnkiCardWrapper:
+    """
+    Wrapper class for Anki cards. It is used to access information about the card and modify it.
+    """
+
     def __init__(self, card):
         self.card = card
 
@@ -57,20 +69,3 @@ class AnkiCardWrapper:
 
     def __str__(self):
         return f"AnkiCardWrapper(id: {self.id}, deck_id: {self.deck_id}, fields: {[repr(f) for f in self.fields]}, tags: {self.tags})"
-
-# # Example usage:
-# card = mw.reviewer.card
-# anki_card = AnkiCardWrapper(card)
-
-# logging.debug("Card ID: %s", anki_card.id)
-# logging.debug("Deck ID: %s", anki_card.deck_id)
-# logging.debug("Fields: %s", anki_card.fields)
-# logging.debug("Front Field: %s", anki_card.field('Front'))
-# logging.debug("Has Tag 'Important': %s", anki_card.has_tag('Important'))
-
-
-# # Uncomment to modify card and save
-# # anki_card.add_tag("NewTag")
-# # anki_card.save()
-
-# logging.debug(anki_card)

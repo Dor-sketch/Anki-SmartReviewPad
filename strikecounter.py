@@ -1,3 +1,7 @@
+"""
+This module contains the GlobalStrikeCounter class, which is a singleton that keeps track of the number of incorrect answers in a row.
+It also plays sounds and displays notifications when the user gets an answer correct or incorrect.
+"""
 import logging
 import subprocess
 
