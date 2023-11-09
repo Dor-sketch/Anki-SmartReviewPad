@@ -47,6 +47,7 @@ CLOZE_PATTERN = re.compile(r"""
 """, re.VERBOSE)
 
 
+
 def my_get_scratchpad(card) -> None:
     """
     This function is called when the card is shown.
@@ -94,6 +95,9 @@ class CardReviewer:
     def _log_and_speak(self, message):
         self.card_reviewer_logger.debug(message)
 
+
+
+
     def _update_card_review(self, card=None):
         card = mw.reviewer.card
         fields = card.note().fields
@@ -111,19 +115,32 @@ class CardReviewer:
     def _find_first_non_empty_field(self, fields):
         return next((field for field in fields if not field.startswith("[sound:") and field.strip()), None)
 
-    def _find_cloze(self, front_field):
-        return CLOZE_PATTERN.search(front_field)
+    def _find_clozes(self, front_field):
+        """
+        Find all cloze deletions in the given field text and return them.
+        """
+        return CLOZE_PATTERN.findall(front_field)
 
     def _build_front_html(self, front_field):
+        """
+        Build the HTML for the front of the card, showing only the current cloze.
+        """
         self.card_reviewer_logger.debug("Front field before: %s", front_field)
-        # handle cloze with regular expression
-        if "{{c" in front_field:
-            cloze = self._find_cloze(front_field)
-            if cloze:
-                self.cloze_answer = cloze.group(2)
-                front_field = re.sub(r"{{c(\d+)::(.+?)}}", r"{}", front_field)
-                self.card_reviewer_logger.debug(
-                    "Front field after cloze extract: %s", front_field)
+        cloze_number = self.reviewer.card.ord + 1  # Get the current cloze number
+        clozes = self._find_clozes(front_field)
+
+        for cn, content in clozes:
+            if int(cn) == cloze_number:
+                # Replace only the current cloze with a placeholder for the scratchpad
+                front_field = re.sub(rf"{{{{c{cn}::(.+?)}}}}", r"{}", front_field)
+                self.cloze_answer = content
+                self.card_reviewer_logger.debug("content: %s", content)
+            else:
+                # Replace other clozes with their contents directly, removing cloze notation
+                front_field = re.sub(rf"{{{{c{cn}::(.+?)}}}}", r"\1", front_field)
+
+
+            self.card_reviewer_logger.debug("Front field after cloze extract: %s", front_field)
 
         if "$$" in front_field or "\\(" in front_field:
             front_field = self._render_math(front_field)
@@ -266,8 +283,8 @@ class CardReviewer:
         Checks the answer and updates the strike counter accordingly.
         """
 
-        scratchpad_words = set(scratchpad_content)
-
+        scratchpad_words = set(re.split(r'\W+', scratchpad_content))
+        
         if self.cloze_answer is not None:
             all_content_words = set(
                 [word for word in re.split(r'\W+', self.cloze_answer) if word])
@@ -289,6 +306,8 @@ class CardReviewer:
                 self.card_reviewer_logger.debug("Correct answer")
                 strike_counter_instance.increment()
             else:
+                self.card_reviewer_logger.debug("Wrong answer: expected %s, got %s",
+                                                all_content_words, scratchpad_words)
                 strike_counter_instance.reset()
 
 
