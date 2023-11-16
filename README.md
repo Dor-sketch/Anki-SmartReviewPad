@@ -4,6 +4,11 @@
 
 SmartReviewPad is an Anki add-on that helps you review your cards more effectively. Now with added features like automatic answer checking and sound effects to improve your learning experience!
 
+---
+
+![image](https://github.com/Dor-sketch/Anki-SmartReviewPad/assets/138825033/25f219e9-173e-4ff1-96c3-cc756b1472a0)
+
+
 ## Motivation 🤔
 
 Anki is a great tool for learning and memorizing information. However, it can be tedious to use, especially when reviewing large decks. SmartReviewPad aims to solve this problem by enhancing the Anki experience with new features and improvements.
