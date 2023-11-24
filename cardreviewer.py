@@ -177,39 +177,23 @@ class CardReviewer:
         inline_math = self._find_inline_math(text)
         inline_math = [f"\\({expr}\\)" for expr in inline_math]
 
+        logging.debug("Inline math expressions: %s", inline_math)
+
         # Check if pandoc exists
         if os.path.exists(PANDOC_PATH):
             # Render each inline math expression
             rendered_inline_math = []
             for expr in inline_math:
                 # TODO: Handle errors
-                # try:
-                #     result = subprocess.run(
-                #         [PANDOC_PATH, '-f', 'latex', '-t', 'html'],
-                #         input=expr,
-                #         text=True,
-                #         capture_output=True,
-                #         encoding='utf-8',  # Added encoding to handle non-ASCII characters
-                #         check=True  # Automatically raise an error if the command fails
-                #     )
-                #     rendered_math = result.stdout.strip().replace("<p>", "").replace("</p>", "")
-                #     rendered_inline_math.append(rendered_math)
-                # except subprocess.CalledProcessError as e:
-                #     self.card_reviewer_logger.debug(
-                #         "Pandoc failed with error code %d: %s", e.returncode, e.stderr)
-                #     return text  # Return original text if error occurs
-                # except Exception as e:
-                #     self.card_reviewer_logger.debug(
-                #         "Error occurred while running pandoc: %s", e)
-                #     return text  # Return original text if error occurs
                 try:
                     result = subprocess.run(
-                        [PANDOC_PATH, '-f', 'latex', '-t', 'html'],
+                        [PANDOC_PATH, '-f', 'latex', '--mathjax', '-t', 'html', '--webtex'],
                         input=expr,
                         text=True,
                         capture_output=True,
                         encoding='utf-8'  # handle non-ASCII characters
                     )
+                    logging.debug("Pandoc result: %s", result)
                     if result.returncode == 0:
                         rendered_math = result.stdout.strip().replace("<p>", "").replace("</p>", "")
                         rendered_inline_math.append(rendered_math)
@@ -232,6 +216,16 @@ class CardReviewer:
         return text
 
     def _inject_card_html(self, front_html, scratchpad_html, back_html):
+
+        if "$$" in back_html or "\\(" in back_html:
+            back_html = self._render_math(back_html)
+
+        if "$$" in scratchpad_html or "\\(" in scratchpad_html:
+            scratchpad_html = self._render_math(scratchpad_html)
+
+        if "$$" in front_html or "\\(" in front_html:
+            front_html = self._render_math(front_html)
+
         self.card_reviewer_logger.debug(
             "Injecting card HTML (font is): %s", front_html)
 
@@ -284,7 +278,7 @@ class CardReviewer:
         """
 
         scratchpad_words = set(re.split(r'\W+', scratchpad_content))
-        
+
         if self.cloze_answer is not None:
             all_content_words = set(
                 [word for word in re.split(r'\W+', self.cloze_answer) if word])
