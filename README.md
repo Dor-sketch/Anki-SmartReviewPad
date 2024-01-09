@@ -1,10 +1,10 @@
-# SmartReviewPad - An Enhanced Anki Add-on for Effective Reviewing 📚
-
-## Introduction 🌟
+# SmartReviewPad: Enhanced Anki Add-on for Effective Reviewing 📚
 
 SmartReviewPad is an Anki add-on that helps you review your cards more effectively. Now with added features like automatic answer checking and sound effects to improve your learning experience!
 
-![image](https://github.com/Dor-sketch/Anki-SmartReviewPad/assets/138825033/25f219e9-173e-4ff1-96c3-cc756b1472a0)
+<div align="center" style="margin: 20px">
+   <img src="https://github.com/Dor-sketch/Anki-SmartReviewPad/assets/138825033/25f219e9-173e-4ff1-96c3-cc756b1472a0" width="400" height="400" /></img>
+</div>
 
 ---
 
@@ -26,6 +26,9 @@ SmartReviewPad is implemented as an `Anki add-on`, extending Anki's internal fun
 
 - **Interactive Front Side**: Now enhanced with automatic answer checking. Enter your answer on the front side of the card, and SmartReviewPad will automatically verify it against the back side. 🌍
 
+| ![image](https://github.com/Dor-sketch/Anki-SmartReviewPad/assets/138825033/e775066a-22f8-4f25-a4b5-be3ff89bcb14) | ![image](https://github.com/Dor-sketch/Anki-SmartReviewPad/assets/138825033/d11b51ab-da6e-40a8-8cdc-1795927b3285) | ![image](https://github.com/Dor-sketch/Anki-SmartReviewPad/assets/138825033/dcb278ad-479e-4a72-a18e-69fd03eafae4) |
+| -- | -- | --|
+
 - **Automatic Back Side**: The back side of your cards is auto-generated based on your input on the front side. 🔄
 
 - **Automatic Review**: Review your cards directly in the editor. 🚀
@@ -44,6 +47,10 @@ SmartReviewPad is implemented as an `Anki add-on`, extending Anki's internal fun
 
 - **Cloze Support**: Cloze cards are now supported! 🎉
   - Note: Cloze cards are only partially supported. The add-on will only work with cloze cards that have a single cloze deletion. Multi-cloze cards are not supported at the moment.
+
+   | ![image](https://github.com/Dor-sketch/Anki-SmartReviewPad/assets/138825033/38be4e7a-8c75-43b6-a69d-673501548fdd) | ![image](https://github.com/Dor-sketch/Anki-SmartReviewPad/assets/138825033/2d2c6469-3026-48d6-975f-f5abed396cea) | ![image](https://github.com/Dor-sketch/Anki-SmartReviewPad/assets/138825033/f10fe7d7-80e3-4413-8932-5b44ba1afd09) |
+  | -- | -- | -- |
+
   - The add-on will automatically detect cloze cards and enable the relevant features using `Cloze Detection`.
 
 - **MathJax Support**: MathJax is now supported! 🎉
@@ -54,6 +61,8 @@ SmartReviewPad is implemented as an `Anki add-on`, extending Anki's internal fun
 1️⃣ Download the latest version of SmartReviewPad from [here](https://github.com/Dor-sketch/Anki-SmartReviewPad.git).
 
 2️⃣ Copy the `SmartReviewPad` folder to your Anki add-ons folder. Navigate to `Tools > Add-ons > View Files...` in Anki to find the add-ons folder.
+
+  ![image](https://github.com/Dor-sketch/Anki-SmartReviewPad/assets/138825033/9f9e98b2-9b6a-4f7b-a116-a9cd599b8ce3)
 
 3️⃣ Restart Anki to complete the installation.
 
