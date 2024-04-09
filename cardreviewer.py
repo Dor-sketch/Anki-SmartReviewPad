@@ -298,11 +298,11 @@ class CardReviewer:
         if scratchpad_words is not None:
             if intersection_result:
                 self.card_reviewer_logger.debug("Correct answer")
-                strike_counter_instance.increment()
+                # strike_counter_instance.increment()
             else:
                 self.card_reviewer_logger.debug("Wrong answer: expected %s, got %s",
                                                 all_content_words, scratchpad_words)
-                strike_counter_instance.reset()
+                # strike_counter_instance.reset()
 
 
 # TODO:: Implement MathHandler class to accordint to SRP and OCP
