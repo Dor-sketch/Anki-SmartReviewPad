@@ -11,12 +11,15 @@ import sys
 from flashcardmanager import FlashcardManager
 from PyQt5.QtCore import QRect
 from PyQt5.QtCore import QPropertyAnimation, QEasingCurve
-
+from PyQt5.QtCore import QSize
+from PyQt5.QtWidgets import QStyle
 import sys
 from PyQt5.QtWidgets import QApplication, QGraphicsDropShadowEffect, QWidget, QLabel
 from PyQt5.QtCore import QRect, Qt
 from PyQt5.QtGui import QColor
-
+from PyQt5.QtWidgets import QVBoxLayout, QPushButton, QInputDialog, QMessageBox, QTableWidget, QTableWidgetItem, QScrollArea, QSizePolicy, QHBoxLayout, QListWidget, QListWidgetItem
+from PyQt5.QtCore import QTimer
+from PyQt5.QtWidgets import QComboBox
 
 class FlashcardApp(QMainWindow):
     def __init__(self):
@@ -44,7 +47,6 @@ class FlashcardApp(QMainWindow):
         self.animation.start()
 
     def load_stylesheet(self):
-        # ...
         with open('style.css', 'r') as f:
             return f.read()
 
@@ -58,8 +60,6 @@ class FlashcardApp(QMainWindow):
         effect.setOffset(5, 5)
         effect.setColor(QColor(0, 0, 0, 50))
         self.deck_label.setGraphicsEffect(effect)
-
-
         self.main_layout.addWidget(self.deck_label)
         # Display the number of cards in the deck
         num_cards = len(self.manager.db.get_cards_from_deck(
@@ -107,56 +107,88 @@ class FlashcardApp(QMainWindow):
     def show_all_cards(self):
         self.clear_layout(self.main_layout)
 
+        # Create a combo box for the tags
+        self.tag_combo = QComboBox()
+        self.tag_combo.addItem("All")
+        self.tag_combo.addItems(self.manager.get_tags())
+        self.tag_combo.currentTextChanged.connect(self.update_table)
+
+        self.main_layout.addWidget(self.tag_combo)
+
         # Create a table widget with columns for each attribute of a card
-        table = QTableWidget()
-        table.setColumnCount(5)
-        table.setHorizontalHeaderLabels(
+        self.table = QTableWidget()
+        self.table.setColumnCount(4)
+        self.table.setHorizontalHeaderLabels(
             ["Question", "Answer", "Next Review Date", "Actions"])
         effect = QGraphicsDropShadowEffect()
         effect.setBlurRadius(10)
         effect.setOffset(5, 5)
         effect.setColor(QColor(0, 0, 0, 50))
-        table.setGraphicsEffect(effect)
+        self.table.setGraphicsEffect(effect)
         # make it stretch to the full width
-        table.horizontalHeader().setStretchLastSection(True)
+        self.table.horizontalHeader().setStretchLastSection(True)
+
+        # Add the table to a scroll area
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setWidget(self.table)
+
+        self.main_layout.addWidget(scroll_area)
+
+        # Add a return button
+        return_button = QPushButton("Return")
+        return_button.clicked.connect(self.create_main_menu)
+        self.main_layout.addWidget(return_button)
+
+        # Update the table
+        self.update_table()
+
+    def update_table(self):
+        tag = self.tag_combo.currentText()
+        if tag == "All":
+            tag = None
         cards = self.manager.db.get_cards_from_deck(
-            self.manager.current_deck_id)
-        if cards:
-            table.setRowCount(len(cards))
-            for i, card in enumerate(cards):
-                table.setItem(i, 0, QTableWidgetItem(card['question']))
-                table.setItem(i, 1, QTableWidgetItem(card['answer']))
-                table.setItem(i, 2, QTableWidgetItem(
-                    str(card['next_review_date'])))
+            self.manager.current_deck_id, tag)
+        self.table.setRowCount(len(cards))
+        for i, card in enumerate(cards):
+            self.table.setItem(i, 0, QTableWidgetItem(card['question']))
+            self.table.setItem(i, 1, QTableWidgetItem(card['answer']))
+            self.table.setItem(i, 2, QTableWidgetItem(
+                str(card['next_review_date'])))
 
-                # Add buttons for editing and deleting
-                edit_button = QPushButton("Edit")
-                edit_button.clicked.connect(lambda: self.edit_card(card['id']))
-                delete_button = QPushButton("Delete")
-                delete_button.clicked.connect(
-                    lambda: self.delete_card(card['id']))
 
-                table.setCellWidget(i, 3, edit_button)
-                table.setCellWidget(i, 4, delete_button)
+            # Set the row height
+            self.table.setRowHeight(i, 50)  # Adjust the number as needed
 
-            # Sort by columns when headers are clicked
-            table.horizontalHeader().sectionClicked.connect(table.sortByColumn)
+            # Add buttons for editing and deleting
+            # Add buttons for editing and deleting
+            edit_button = QPushButton()
+            edit_button.setIcon(self.style().standardIcon(QStyle.SP_FileDialogDetailedView))  # Set the "Edit" icon
+            edit_button.setIconSize(QSize(50, 50))  # Set the icon size
+            edit_button.setFixedSize(QSize(50, 50))  # Set the button size
+            edit_button.clicked.connect(lambda: self.edit_card(card['id']))
 
-            # Add the table to a scroll area
-            scroll_area = QScrollArea()
-            scroll_area.setWidgetResizable(True)
-            scroll_area.setWidget(table)
+            delete_button = QPushButton()
+            delete_button.setIcon(self.style().standardIcon(QStyle.SP_TrashIcon))  # Set the "Delete" icon
+            delete_button.setIconSize(QSize(50, 50))  # Set the icon size
+            delete_button.setFixedSize(QSize(50, 50))  # Set the button size
+            delete_button.clicked.connect(lambda: self.delete_card(card['id']))
+            # Create a layout to hold both buttons
+            button_layout = QHBoxLayout()
+            button_layout.addWidget(edit_button)
+            button_layout.addWidget(delete_button)
 
-            self.main_layout.addWidget(scroll_area)
+            # Create a widget to hold the layout
+            button_widget = QWidget()
+            button_widget.setLayout(button_layout)
+            # Set the widget as the cell widget
+            self.table.setCellWidget(i, 3, button_widget)
 
-            # Add a return button
-            return_button = QPushButton("Return")
-            return_button.clicked.connect(self.create_main_menu)
-            self.main_layout.addWidget(return_button)
-        else:
-            QMessageBox.information(
-                self, "Info", "No flashcards available in the current deck. Please add some first.")
-            self.create_main_menu()
+            self.table.setColumnWidth(0, 200)  # Adjust the number as needed
+            self.table.setColumnWidth(1, 200)  # Adjust the number as needed
+            self.table.setColumnWidth(3, 10)  # Adjust the number as needed
+
+
 
     # Add these methods to handle editing and deleting cards
     def edit_card(self, card_id):
@@ -164,26 +196,100 @@ class FlashcardApp(QMainWindow):
 
         card = self.manager.get_card_data(card_id)
 
-        question_entry = QLineEdit(card['question'])
+        self.question_entry = QLineEdit(card['question'])
         answer_entry = QLineEdit(card['answer'])
+        # Fetch existing tags from the database
+        existing_tags = self.manager.get_tags()
 
-        self.main_layout.addWidget(
-            QLabel("Edit Flashcard", font=QFont('Helvetica', 18, QFont.Bold)))
-        self.main_layout.addWidget(question_entry)
+        # Create a QListWidget for the tags
+        tags_entry = QListWidget()
+        if existing_tags:
+            for tag in existing_tags:
+                item = QListWidgetItem(tag)
+                item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
+                item.setCheckState(Qt.Unchecked)
+                tags_entry.addItem(item)
+        # else:
+        #     QMessageBox.information(
+        #         self, "Info", "No tags available. Please add some first.")
+
+        # Create a QLineEdit for the new tag
+        new_tag_entry = QLineEdit()
+        new_tag_entry.setPlaceholderText("Enter new tag here")
+
+        # Create a QPushButton to add the new tag
+        add_tag_button = QPushButton("Add Tag")
+        add_tag_button.clicked.connect(lambda: self.add_tag(new_tag_entry.text(), tags_entry))
+
+        # Add the widgets to the layout
+        self.main_layout.addWidget(tags_entry)
+        self.main_layout.addWidget(new_tag_entry)
+        self.main_layout.addWidget(add_tag_button)
+
+        return_button = QPushButton("Return")
+        return_button.clicked.connect(self.show_all_cards)
+        self.main_layout.addWidget(return_button)
+
+        # Ensure the widget and its children are shown
+        self.show()
+
+        # Set focus to the question entry field after a delay
+        QTimer.singleShot(0, self.question_entry.setFocus)
+
+
+        # If the card has tags, check the corresponding items
+        if 'tags' in card:
+            for i in range(tags_entry.count()):
+                if tags_entry.item(i).text() in card['tags']:
+                    tags_entry.item(i).setCheckState(Qt.Checked)
+
+        label = QLabel("Edit Flashcard", font=QFont('Helvetica', 18, QFont.Bold))
+        label.setAlignment(Qt.AlignCenter)
+        effect = QGraphicsDropShadowEffect()
+        effect.setBlurRadius(10)
+        effect.setOffset(5, 5)
+        effect.setColor(QColor(0, 0, 0, 50))
+        label.setGraphicsEffect(effect)
+        self.main_layout.addWidget(label)
+        self.main_layout.addWidget(self.question_entry)
         self.main_layout.addWidget(answer_entry)
+        self.main_layout.addWidget(tags_entry)  # Add this line
 
         button = QPushButton("Save")
         button.clicked.connect(lambda: self.save_card(
-            card_id, question_entry.text(), answer_entry.text(), editing=True))
+            card_id, self.question_entry.text(), answer_entry.text(), tags_entry,
+            editing=True))
         self.main_layout.addWidget(button)
 
-        return_button = QPushButton("Return to Main Menu")
+        return_button = QPushButton("Main Menu")
         return_button.clicked.connect(self.create_main_menu)
         self.main_layout.addWidget(return_button)
 
-    def save_card(self, card_id, question, answer, editing=False):
+
+    def add_tag(self, tag, tags_entry):
+        if tag:
+            item = QListWidgetItem(tag)
+            item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
+            item.setCheckState(Qt.Checked)
+            tags_entry.addItem(item)
+        else:
+            QMessageBox.critical(self, "Error", "Tag cannot be empty.")
+
+    def save_card(self, card_id, question, answer, tags_entry, editing=False):
+
+        # Get the selected tags
+        tags = [tags_entry.item(i).text() for i in range(tags_entry.count()) if tags_entry.item(i).checkState() == Qt.Checked]
+        print(f"Selected tags: {tags}")  # Print the selected tags
+
+        # Save the flashcard with the question, answer, and tags
         if question and answer:
             self.manager.update_card(card_id, question, answer)
+            self.manager.set_tag(card_id, tags)
+
+            # Print the tags after saving
+            saved_tags = self.manager.get_tags(card_id)
+            print(f"Saved tags: {saved_tags}")
+
             QMessageBox.information(
                 self, "Success", "Flashcard updated successfully!")
             if editing:
@@ -249,12 +355,47 @@ class FlashcardApp(QMainWindow):
             self.deck_label.setText(f"Current Deck: {deck_info['name']}")
         else:
             self.deck_label.setText("Current Deck: No deck selected")
-
     def add_flashcard_view(self):
         self.clear_layout(self.main_layout)
 
         self.question_entry = QLineEdit()
         self.answer_entry = QLineEdit()
+        self.question_entry.setPlaceholderText("Enter question here")
+        self.answer_entry.setPlaceholderText("Enter answer here")
+        self.question_entry.setMinimumWidth(400)
+        self.answer_entry.setMinimumWidth(400)
+
+        self.tags_entry = QListWidget()
+        self.tags_entry.setMinimumWidth(400)
+        self.tags_entry.setSortingEnabled(True)
+        self.tags_entry.setLayoutDirection(Qt.RightToLeft)  # Set the layout direction to RTL
+
+        # Fetch existing tags from the database
+        existing_tags = self.manager.get_tags()
+
+        # Add existing tags to the QListWidget with checkboxes
+        for tag in existing_tags:
+            item = QListWidgetItem(tag)
+            item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
+            item.setCheckState(Qt.Unchecked)
+            self.tags_entry.addItem(item)
+
+        effect = QGraphicsDropShadowEffect()
+        effect.setBlurRadius(10)
+        effect.setOffset(5, 5)
+        effect.setColor(QColor(0, 0, 0, 50))
+        self.tags_entry.setGraphicsEffect(effect)
+
+
+        # Create a QLineEdit for the new tag
+        self.new_tag_entry = QLineEdit()
+        self.new_tag_entry.setPlaceholderText("Enter new tag here")
+
+        # Create a QPushButton to add the new tag
+        add_tag_button = QPushButton("Add Tag")
+        add_tag_button.clicked.connect(self.add_new_tag)
+
+        # Add to the main layout
         label = QLabel("Add a New Flashcard", font=QFont('Helvetica', 18, QFont.Bold))
         label.setAlignment(Qt.AlignCenter)
         effect = QGraphicsDropShadowEffect()
@@ -265,7 +406,9 @@ class FlashcardApp(QMainWindow):
         self.main_layout.addWidget(label)
         self.main_layout.addWidget(self.question_entry)
         self.main_layout.addWidget(self.answer_entry)
-
+        self.main_layout.addWidget(self.tags_entry)
+        self.main_layout.addWidget(self.new_tag_entry)
+        self.main_layout.addWidget(add_tag_button)
 
         button = QPushButton("Submit")
         button.clicked.connect(self.save_flashcard)
@@ -280,6 +423,22 @@ class FlashcardApp(QMainWindow):
 
         # Set focus to the question entry field after a delay
         QTimer.singleShot(0, self.question_entry.setFocus)
+
+    def add_new_tag(self):
+        # Get the new tag from the QLineEdit
+        new_tag = self.new_tag_entry.text()
+
+        # Add the new tag to the database
+        self.manager.add_new_tag(new_tag)
+
+        # Add the new tag to the QListWidget
+        item = QListWidgetItem(new_tag)
+        item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
+        item.setCheckState(Qt.Unchecked)
+        self.tags_entry.addItem(item)
+
+        # Clear the QLineEdit
+        self.new_tag_entry.clear()
 
     def save_flashcard(self):
         question = self.question_entry.text()
@@ -428,14 +587,3 @@ class FlashcardApp(QMainWindow):
             self.deck_label.setText(f"Current Deck: {deck_info['name']}")
         else:
             self.deck_label.setText("Current Deck: No deck selected")
-
-
-if __name__ == "__main__":
-    # This line allows Ctrl+C to properly quit the application
-    signal.signal(signal.SIGINT, signal.SIG_DFL)
-
-    app = QApplication([])
-    window = FlashcardApp()
-    window.setStyleSheet(window.load_stylesheet())
-    window.show()
-    sys.exit(app.exec_())

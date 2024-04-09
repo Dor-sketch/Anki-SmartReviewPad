@@ -11,6 +11,22 @@ class FlashcardManager:
         deck_id = self.db.add_deck(name)
         self.set_current_deck(deck_id)
         return deck_id
+    def set_tag(self, card_id, tags):
+        if self.current_deck_id is not None:
+            for tag in tags:
+                self.db.set_tag(card_id, tag)
+
+    def get_tags(self, card_id=None):
+        return self.db.get_tags(card_id)
+
+    def remove_tag(self, card_id, tag):
+        self.db.remove_tag(card_id, tag)
+
+    def create_tag(self, name):
+        self.db.add_tag(name)
+
+    def add_new_tag(self, tag):
+        self.db.add_new_tag(tag)
 
     def add_flashcard(self, question, answer):
         if self.current_deck_id is not None:

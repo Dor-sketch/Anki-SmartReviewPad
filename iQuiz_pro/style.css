@@ -66,3 +66,20 @@ QMessageBox QLabel {
     font-size: 22px;
     text-align: center;
 }
+
+QListWidget {
+    background-color: #f8f8f8;
+    border: 2px solid #bbb;
+    border-radius: 5px;
+    padding: 5px;
+    color: #a10000;
+}
+
+
+QTableWidget {
+    background-color: #f8f8f8;
+    border: 2px solid #bbb;
+    border-radius: 5px;
+    padding: 5px;
+    color: #333;
+}
